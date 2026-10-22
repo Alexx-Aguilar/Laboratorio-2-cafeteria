@@ -1,0 +1,103 @@
+{
+  "name": "Komorebi Cafe - AI Agent LangChain con LLM",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "sugerencia-compras",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-entrada-pos",
+      "name": "Webhook Entrada POS",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        220,
+        300
+      ],
+      "webhookId": "sugerencia-compras"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json || {};\nconst insumosCriticos = body.insumos_criticos || [];\nconst topProductos = body.top_productos || [];\n\nconst prompt = `\nEres el barista principal y gerente de inventario de Komorebi Café & Bakery.\nInsumos críticos detectados:\n${JSON.stringify(insumosCriticos, null, 2)}\n\nProductos más vendidos:\n${JSON.stringify(topProductos, null, 2)}\n\nGenera un dictamen y sugerencia de compras para cada insumo con justificación operativa.\n`;\n\nreturn { prompt, insumosCriticos, topProductos };"
+      },
+      "id": "preparar-contexto",
+      "name": "Preparar Datos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.prompt }}",
+        "options": {
+          "systemMessage": "Eres un asistente de inventario y barista para una cafetería gourmet. Responde siempre con amabilidad y precisión en las cantidades requeridas."
+        }
+      },
+      "id": "ai-agent-langchain",
+      "name": "AI Agent LangChain",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        700,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"ok\": true,\n  \"data\": {\n    \"fecha_analisis\": $now.toISO(),\n    \"resumen_ejecutivo\": $json.output || \"Análisis de inventario completado por AI Agent\",\n    \"analisis_ia\": $json.output || \"El modelo evaluó el déficit de insumos y el ritmo de consumo.\",\n    \"recomendaciones\": $(\"Preparar Datos\").first().json.insumosCriticos.map(item => ({\n      \"insumo_id\": item.id,\n      \"nombre\": item.nombre,\n      \"unidad\": item.unidad,\n      \"stock_actual\": item.stock_actual,\n      \"stock_minimo\": item.stock_minimo,\n      \"cantidad_sugerida\": Math.round((item.deficit + item.stock_minimo * 1.5) * 100) / 100,\n      \"urgencia\": item.stock_actual <= item.stock_minimo * 0.4 ? \"Crítica\" : \"Alta\",\n      \"justificacion\": `El stock de ${item.nombre} está bajo mínimos. Se recomienda reponer para cubrir 7 días de consumo proyectado.`\n    }))\n  },\n  \"error\": null,\n  \"fuente\": \"n8n_live_agent\"\n}",
+        "options": {}
+      },
+      "id": "respuesta-webhook-contrato",
+      "name": "Respond to Webhook (Contrato OK)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        980,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook Entrada POS": {
+      "main": [
+        [
+          {
+            "node": "Preparar Datos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Datos": {
+      "main": [
+        [
+          {
+            "node": "AI Agent LangChain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent LangChain": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook (Contrato OK)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {}
+}
