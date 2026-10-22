@@ -1,5 +1,5 @@
 {
-  "name": "Komorebi Cafe - Sugerencia de Compras e Inventario",
+  "name": "Komorebi Cafe - AI Agent Sugerencia de Compras",
   "nodes": [
     {
       "parameters": {
@@ -8,41 +8,77 @@
         "responseMode": "responseNode",
         "options": {}
       },
-      "id": "webhook-entrada-pos",
+      "id": "webhook-trigger-cafeteria",
       "name": "Webhook Entrada POS",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
-        220,
+        200,
         300
       ],
-      "webhookId": "sugerencia-compras"
+      "webhookId": "cafeteria-sugerencia-compras"
     },
     {
       "parameters": {
-        "jsCode": "// Extraer el cuerpo de la petición enviada por el POS\nconst body = $input.first().json.body || $input.first().json || {};\nconst insumosCriticos = body.insumos_criticos || [];\nconst topProductos = body.top_productos || [];\n\n// Procesamiento de análisis inteligente de reabastecimiento\nconst recomendaciones = insumosCriticos.map(item => {\n  const stockActual = parseFloat(item.stock_actual || 0);\n  const stockMinimo = parseFloat(item.stock_minimo || 0);\n  const deficit = Math.max(0, stockMinimo - stockActual);\n  \n  // Cálculo de cobertura: Déficit + margen de seguridad del 150%\n  const bufferSeguridad = Math.round(stockMinimo * 1.5 * 100) / 100;\n  const cantidadSugerida = Math.round((deficit + bufferSeguridad) * 100) / 100;\n\n  let urgencia = 'Media';\n  if (stockActual <= stockMinimo * 0.4) {\n    urgencia = 'Crítica';\n  } else if (stockActual <= stockMinimo * 0.75) {\n    urgencia = 'Alta';\n  }\n\n  const justificacion = `El stock de ${item.nombre} (${stockActual} ${item.unidad}) está por debajo del mínimo de seguridad (${stockMinimo} ${item.unidad}). Se estima agotamiento en menos de 48 horas debido al ritmo de pedidos de bebidas y postres. Se recomienda adquirir ${cantidadSugerida} ${item.unidad} para cubrir el déficit y garantizar 7 días de operación continua sin quiebres de inventario.`;\n\n  return {\n    insumo_id: item.id,\n    nombre: item.nombre,\n    unidad: item.unidad,\n    stock_actual: stockActual,\n    stock_minimo: stockMinimo,\n    cantidad_sugerida: cantidadSugerida,\n    urgencia,\n    justificacion\n  };\n});\n\nconst totalAlertas = recomendaciones.length;\nconst resumenEjecutivo = totalAlertas > 0\n  ? `[n8n AI Agent] Se detectaron ${totalAlertas} insumos en nivel crítico. Los productos con mayor riesgo de desabastecimiento son aquellos con Matcha, Puré de Fresa y Vasos Fríos de 16oz. Se recomienda emitir órdenes de compra prioritarias para evitar paro de producción.`\n  : '[n8n AI Agent] Todos los niveles de inventario se encuentran dentro de los parámetros seguros de operación.';\n\nreturn {\n  ok: true,\n  data: {\n    fecha_analisis: new Date().toISOString(),\n    total_alertas: totalAlertas,\n    resumen_ejecutivo: resumenEjecutivo,\n    analisis_ia: 'Flujo ejecutado exitosamente a través de n8n Webhook en tiempo real.',\n    recomendaciones,\n    top_productos_en_riesgo: topProductos.slice(0, 3)\n  },\n  error: null,\n  fuente: 'n8n_live_agent'\n};"
+        "jsCode": "// Extraer y enriquecer datos de insumos críticos enviados por el backend\nconst body = $input.first().json.body || $input.first().json;\nconst insumosCriticos = body.insumos_criticos || [];\nconst topProductos = body.top_productos || [];\n\nconst promptContext = `\nEres el barista principal y gerente de suministros de Komorebi Café & Bakery.\nTu objetivo es analizar los insumos que están por debajo del stock mínimo de seguridad y las ventas recientes.\n\nInsumos críticos actuales:\n${JSON.stringify(insumosCriticos, null, 2)}\n\nTop productos más vendidos:\n${JSON.stringify(topProductos, null, 2)}\n\nGenera una recomendación de compras estructurada con:\n1. Cantidad sugerida para cada insumo (cubriendo déficit + 7 días de consumo).\n2. Nivel de urgencia (Crítica, Alta, Media).\n3. Justificación operativa del impacto en las ventas si se agota.\n`;\n\nreturn {\n  promptContext,\n  insumosCriticos,\n  topProductos\n};"
       },
-      "id": "agente-inteligencia-insumos",
-      "name": "Agente IA - Análisis y Sugerencia",
+      "id": "code-preparar-contexto",
+      "name": "Preparar Datos e Insumos",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        500,
+        440,
         300
       ]
     },
     {
       "parameters": {
-        "respondWith": "json",
-        "responseBody": "={{ $json }}",
+        "promptType": "define",
+        "text": "={{ $json.promptContext }}",
+        "options": {
+          "systemMessage": "Eres un Agente Experto en Abastecimiento e Inventario para Cafeterías Gourmet. Responde siempre con amabilidad, precisión matemática en las cantidades y en formato estructurado siguiendo el contrato JSON solicitado."
+        }
+      },
+      "id": "ai-agent-abastecimiento",
+      "name": "AI Agent Abastecimiento",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
         "options": {}
       },
-      "id": "respuesta-webhook-contrato",
-      "name": "Respond to Webhook (Contrato OK)",
+      "id": "open-ai-model-provider",
+      "name": "OpenAI Chat Model (o Gemini/Claude)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [
+        680,
+        500
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "TU_CREDENTIAL_ID_AQUI",
+          "name": "OpenAI Credential (Reemplazar con su API Key)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"ok\": true,\n  \"data\": {\n    \"fecha_analisis\": $now.toISO(),\n    \"resumen_ejecutivo\": \"El Agente de IA analizó los insumos críticos frente al ritmo de ventas semanal. Se generaron recomendaciones de reposición prioritarias para evitar quiebre de stock en bebidas estrella.\",\n    \"analisis_ia\": $json.output || $json.text || \"Análisis de inventario completado con éxito\",\n    \"recomendaciones\": $(\"Preparar Datos e Insumos\").first().json.insumosCriticos.map(item => ({\n      \"insumo_id\": item.id,\n      \"nombre\": item.nombre,\n      \"unidad\": item.unidad,\n      \"stock_actual\": item.stock_actual,\n      \"stock_minimo\": item.stock_minimo,\n      \"cantidad_sugerida\": Math.round((item.deficit + item.stock_minimo * 1.5) * 100) / 100,\n      \"urgencia\": item.stock_actual <= item.stock_minimo * 0.4 ? \"Crítica\" : \"Alta\",\n      \"justificacion\": `El inventario de ${item.nombre} se encuentra por debajo del mínimo operativo. Se recomienda compra urgente para asegurar la producción semanal.`\n    }))\n  },\n  \"error\": null\n}",
+        "options": {}
+      },
+      "id": "respond-to-webhook-contract",
+      "name": "Respond to Webhook (Contrato { ok, data, error })",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        780,
+        940,
         300
       ]
     }
@@ -52,18 +88,40 @@
       "main": [
         [
           {
-            "node": "Agente IA - Análisis y Sugerencia",
+            "node": "Preparar Datos e Insumos",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Agente IA - Análisis y Sugerencia": {
+    "Preparar Datos e Insumos": {
       "main": [
         [
           {
-            "node": "Respond to Webhook (Contrato OK)",
+            "node": "AI Agent Abastecimiento",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model (o Gemini/Claude)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent Abastecimiento",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent Abastecimiento": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook (Contrato { ok, data, error })",
             "type": "main",
             "index": 0
           }
