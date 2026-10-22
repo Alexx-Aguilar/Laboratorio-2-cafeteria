@@ -1,0 +1,152 @@
+{
+  "info": {
+    "_postman_id": "cafeteria-komorebi-lab2",
+    "name": "Laboratorio #2 - Komorebi Café API",
+    "description": "Colección completa de pruebas para la API de Komorebi Café & Bakery (Caso 1: Punto de venta e inventario con IA)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "0. Info y Salud",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "http://localhost:3001/", "protocol": "http", "host": ["localhost"], "port": "3001", "path": [""] }
+      }
+    },
+    {
+      "name": "1. Resumen y Cierre de Caja (SQL SUM/COUNT/GROUP BY)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "http://localhost:3001/api/resumen", "protocol": "http", "host": ["localhost"], "port": "3001", "path": ["api", "resumen"] }
+      }
+    },
+    {
+      "name": "2. Productos - Listar con Disponibilidad Calculada (200)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "http://localhost:3001/api/productos", "protocol": "http", "host": ["localhost"], "port": "3001", "path": ["api", "productos"] }
+      }
+    },
+    {
+      "name": "3. Productos - Detalle con Receta (GET /:id) (200)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "http://localhost:3001/api/productos/2", "protocol": "http", "host": ["localhost"], "port": "3001", "path": ["api", "productos", "2"] }
+      }
+    },
+    {
+      "name": "4. Productos - Error 404 No Encontrado",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "http://localhost:3001/api/productos/9999", "protocol": "http", "host": ["localhost"], "port": "3001", "path": ["api", "productos", "9999"] }
+      }
+    },
+    {
+      "name": "5. Productos - Error 400 Datos Inválidos",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"\",\n  \"precio\": -100\n}" },
+        "url": { "raw": "http://localhost:3001/api/productos", "protocol": "http", "host": ["localhost"], "port": "3001", "path": ["api", "productos"] }
+      }
+    },
+    {
+      "name": "6. Insumos - Listar con Banderas de Bajo Stock (200)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "http://localhost:3001/api/insumos", "protocol": "http", "host": ["localhost"], "port": "3001", "path": ["api", "insumos"] }
+      }
+    },
+    {
+      "name": "7. Insumos - Error 400 Stock Negativo",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Canela en Rama\",\n  \"unidad\": \"g\",\n  \"stock\": -50\n}" },
+        "url": { "raw": "http://localhost:3001/api/insumos", "protocol": "http", "host": ["localhost"], "port": "3001", "path": ["api", "insumos"] }
+      }
+    },
+    {
+      "name": "8. Insumos - Error 409 Conflicto Eliminación Insumo en Uso",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": { "raw": "http://localhost:3001/api/insumos/1", "protocol": "http", "host": ["localhost"], "port": "3001", "path": ["api", "insumos", "1"] }
+      }
+    },
+    {
+      "name": "9. Pedidos - Listar Todos con Estado de Anulación (200)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "http://localhost:3001/api/pedidos", "protocol": "http", "host": ["localhost"], "port": "3001", "path": ["api", "pedidos"] }
+      }
+    },
+    {
+      "name": "10. Pedidos - Error 400 Sin Productos",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"metodo_pago\": \"Efectivo\",\n  \"items\": []\n}" },
+        "url": { "raw": "http://localhost:3001/api/pedidos", "protocol": "http", "host": ["localhost"], "port": "3001", "path": ["api", "pedidos"] }
+      }
+    },
+    {
+      "name": "11. Pedidos - Error 409 Insumos Insuficientes",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"metodo_pago\": \"Tarjeta\",\n  \"cliente_nombre\": \"Pedido Imposible\",\n  \"items\": [\n    { \"producto_id\": 4, \"cantidad\": 500 }\n  ]\n}"
+        },
+        "url": { "raw": "http://localhost:3001/api/pedidos", "protocol": "http", "host": ["localhost"], "port": "3001", "path": ["api", "pedidos"] }
+      }
+    },
+    {
+      "name": "12. Pedidos - Crear Pedido Exitoso (201 Created + Transacción)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"metodo_pago\": \"Sinpe Movil\",\n  \"cliente_nombre\": \"Mariana Rojas\",\n  \"notas\": \"Extra caliente por favor\",\n  \"items\": [\n    { \"producto_id\": 2, \"cantidad\": 1 },\n    { \"producto_id\": 6, \"cantidad\": 1 }\n  ]\n}"
+        },
+        "url": { "raw": "http://localhost:3001/api/pedidos", "protocol": "http", "host": ["localhost"], "port": "3001", "path": ["api", "pedidos"] }
+      }
+    },
+    {
+      "name": "13. Pedidos - Anular Pedido Reciente (< 15 min) (200 OK)",
+      "request": {
+        "method": "PATCH",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"motivo\": \"El cliente cambió de parecer\"\n}" },
+        "url": { "raw": "http://localhost:3001/api/pedidos/2/anular", "protocol": "http", "host": ["localhost"], "port": "3001", "path": ["api", "pedidos", "2", "anular"] }
+      }
+    },
+    {
+      "name": "14. Pedidos - Error 409 Anular Pedido Fuera de 15 Minutos",
+      "request": {
+        "method": "PATCH",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"motivo\": \"Intento de anulación tardío\"\n}" },
+        "url": { "raw": "http://localhost:3001/api/pedidos/1/anular", "protocol": "http", "host": ["localhost"], "port": "3001", "path": ["api", "pedidos", "1", "anular"] }
+      }
+    },
+    {
+      "name": "15. Agente IA - Sugerencia de Compras (Contrato { ok, data, error })",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{}" },
+        "url": { "raw": "http://localhost:3001/api/ia/sugerencia-compras", "protocol": "http", "host": ["localhost"], "port": "3001", "path": ["api", "ia", "sugerencia-compras"] }
+      }
+    }
+  ]
+}
